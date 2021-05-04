@@ -7,6 +7,7 @@ Created on Apr 23, 2021
 import sys
 import pandas as pd
 import numpy as np
+import pickle
 
 import tensorflow as tf
 
@@ -66,13 +67,19 @@ class Model:
             
         return (labels_train, data_train), (labels_test, data_test)
         
-    def save_weights(self, filepath):
-        self.model.save_weights(filepath)
+    def save(self, prefix):
+        with open(prefix + "scaler.pkl", "wb") as f:
+            pickle.dump(self.scaler, f)
+            
+        self.model.save_weights(prefix + "weights.dat")
         
-    def load_weights(self, data_dim, filepath):
+    def load(self, data_dim, prefix):
         self.data_dim = data_dim
         self._init_model()
-        self.model.load_weights(filepath)
+        self.model.load_weights(prefix + "weights.dat")
+        
+        with open(prefix + "scaler.pkl", "rb") as f:
+            self.scaler = pickle.load(f)
         
     def predict(self, data):
         if data.shape[1] != self.data_dim:
