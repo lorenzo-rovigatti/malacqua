@@ -17,9 +17,10 @@ from sklearn.preprocessing import StandardScaler
 import matplotlib.pyplot as plt
 
 class Model: 
-    def __init__(self, label_dim):
+    def __init__(self, label_dim, dim_multiplier=0.5):
         self.label_dim = label_dim
         self.data_dim = None
+        self.dim_multiplier = dim_multiplier
         
     def _init_model(self):
         if self.data_dim is None:
@@ -28,9 +29,9 @@ class Model:
         
         self.model = tf.keras.models.Sequential()
         # hidden layer
-        self.model.add(tf.keras.layers.Dense(int(self.data_dim / 2), activation='relu'))
+        self.model.add(tf.keras.layers.Dense(int(self.data_dim * self.dim_multiplier), activation='relu'))
         self.model.add(tf.keras.layers.Dropout(0.3))
-        self.model.add(tf.keras.layers.Dense(int(self.data_dim / 20), activation='relu'))
+        self.model.add(tf.keras.layers.Dense(int(self.data_dim * self.dim_multiplier / 10), activation='relu'))
         # Final output node for prediction 
         self.model.add(tf.keras.layers.Dense(self.label_dim))
         self.model.compile(loss='mean_absolute_error', optimizer='adam', metrics=['mean_absolute_error'])
@@ -97,7 +98,7 @@ class Model:
             split_total_results = [total_test_result[total_test_result[:,0] == k] for k in np.unique(labels)]
         else:
             total_test_result = np.hstack((labels, results))
-            labels = list(np.transpose(x.squeeze()) for x in np.hsplit(labels, 2))
+            labels = list(np.transpose(x.squeeze()) for x in np.hsplit(labels, self.label_dim))
             indexes = np.lexsort(labels)
             total_test_result = total_test_result[indexes]
             split_total_results = [total_test_result[np.all(total_test_result[:,0:self.label_dim] == k, axis=1)] for k in np.unique(total_test_result[:,0:self.label_dim], axis=0)]
@@ -117,20 +118,21 @@ class Model:
             # cosmax_bar = np.average(compare_results[indexes])
             
             compare_labels.append(compare_label)
-            compare_diff.append(np.average(compare_results) - compare_label)
+            compare_diff.append(np.average(compare_results, axis=0) - compare_label)
             #compare_diff_mode.append(cosmax_bar - compare_label)
             
         compare_labels = np.array(compare_labels)
         compare_diff = np.array(compare_diff)
         #compare_diff_mode = np.array(compare_diff_mode)
 
-        plt.figure(figsize=(12,8))
-        _ = plt.scatter(compare_labels, compare_diff / compare_labels)
-        #plt.scatter(compare_labels, compare_diff_mode / compare_labels)
-        plt.xlabel(r'Label value $l_0$', fontsize=20)
-        plt.ylabel(r'Accuracy $(l - l_0) / l_0$', fontsize=20)
-        plt.legend(["Average", "Mode"])
-        plt.savefig('accuracy.png')
+        
+        for i in range(self.label_dim):
+            plt.figure(figsize=(12,8))
+            _ = plt.scatter(compare_labels[:,i], compare_diff[:,i] / compare_labels[:,i])
+            plt.xlabel(r'Label value $l_0$', fontsize=20)
+            plt.ylabel(r'Accuracy $(l - l_0) / l_0$', fontsize=20)
+            plt.legend(["Average", "Mode"])
+            plt.savefig('accuracy_%d.png' % i)
 
         if self.label_dim == 1:
             n_unique_labels = len(split_total_results)
